@@ -1,0 +1,86 @@
+<html>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <h1>
+        Hi Welcome
+    </h1>
+    <body>
+<py-script>
+            import json
+from difflib import get_close_matches
+
+def load_knowledge_base(file_path: str) -> dict:
+    try:
+        with open(file_path, 'r') as file:
+            data: dict = json.load(file)
+    except FileNotFoundError:
+        data = {"questions": []}  # Create an empty knowledge base if the file does not exist
+    return data
+
+def save_knowledge_base(file_path: str, data: dict):
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=2)
+
+def find_best_match(user_question: str, questions: list) -> str | None:
+    matches: list = get_close_matches(user_question, questions, n=1, cutoff=0.6)
+    return matches[0] if matches else None
+
+def get_answer_for_question(question: str, knowledge_base: dict) -> str | None:
+    for q in knowledge_base["questions"]:
+        if q['question'] == question:
+            return q['answer']
+    return None  # Return None if question not found
+
+def add_dataset_to_knowledge_base_json(file_path: str, knowledge_base: dict):
+    with open(file_path, 'r') as file:
+        dataset = json.load(file)
+    
+    for entry in dataset["questions"]:
+        question = entry["question"]
+        answer = entry["answer"]
+        
+        # Check if the question already exists in the knowledge base
+        existing_question = find_best_match(question, [q["question"] for q in knowledge_base["questions"]])
+        if existing_question and existing_question == question:
+            print(f"Question '{question}' already exists in the knowledge base. Skipping...")
+            continue
+        
+        knowledge_base["questions"].append({"question": question, "answer": answer})
+    
+    save_knowledge_base('knowledge_base.json', knowledge_base)
+    print("Dataset added to knowledge base.")
+
+def chat_bot():
+    knowledge_base: dict = load_knowledge_base('knowledge_base.json')
+    
+    print("Bot: Hi there! I'm here to help. Type 'quit' to exit.")
+    
+    while True:
+        user_input: str = input('You: ')
+        
+        if user_input.lower() == 'quit':
+            break
+        
+        best_match: str | None = find_best_match(user_input, [q["question"] for q in knowledge_base["questions"]])
+    
+        if best_match:
+            answer: str = get_answer_for_question(best_match, knowledge_base)
+            print(f'Bot: {answer}')
+        else:
+            print('Bot: I don\'t know the answer. Can you teach me?')
+            new_answer: str = input('Type the answer or "skip" to skip: ')
+            
+            if new_answer.lower() != 'skip':
+                knowledge_base["questions"].append({"question": user_input, "answer": new_answer})
+                save_knowledge_base('knowledge_base.json', knowledge_base)
+                print('Bot: Thank you! I learned a new response!')
+
+if __name__ == '__main__':
+    # Update the knowledge base with data from a JSON file
+    add_dataset_to_knowledge_base_json('csvjsontest.json', load_knowledge_base('knowledge_base.json'))
+    
+    # Start the chat bot
+    chat_bot()
+        </py-script>
+    </body>
+</html>
